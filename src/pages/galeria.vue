@@ -1,116 +1,156 @@
 <script setup>
-import axios from 'axios';
-import { ref, computed, onMounted } from 'vue';
-import Card from '../components/Card.vue';
-import { getFavorites, toggleFavorite } from '../utils/storage';
+import axios from "axios";
+import { ref, onMounted, watch } from "vue";
+import Card from "../components/Card.vue";
+import { getFavorites, toggleFavorite } from "../utils/storage";
 
-// Estado
 const images = ref([]);
-const loading = ref(false);
-const page = ref(1);
-const limit = ref(12);
 const favorites = ref(getFavorites());
+const loading = ref(false);
+const error = ref("");
+const page = ref(1);
+const query = ref(""); // opcional: tema de busca (nature, city, etc)
 
-// Computado para saber quais IDs estão favoritados
-const favoritesIds = computed(() => new Set(favorites.value.map((i) => i.id)));
 
-// Função para buscar imagens
 const fetchImages = async () => {
   loading.value = true;
+  error.value = "";
+
   try {
-    const { data } = await axios.get('https://picsum.photos/v2/list', {
-      params: { page: page.value, limit: limit.value },
+    
+    const endpoint = query.value
+      ? "https://api.unsplash.com/search/photos"
+      : "https://api.unsplash.com/photos";
+
+    const params = query.value
+      ? { page: page.value, per_page: 16, query: query.value }
+      : { page: page.value, per_page: 16, order_by: "latest" };
+
+    const { data } = await axios.get(endpoint, {
+      params,
+      headers: {
+        Authorization: `Client-ID ${import.meta.env.VITE_UNSPLASH_ACCESS_KEY}`
+      }
     });
-    images.value = data;
-  } catch (err) {
-    console.error('Erro ao carregar imagens', err);
+
+    // Normaliza o resultado dependendo do endpoint
+    const results = Array.isArray(data) ? data : data.results;
+
+    images.value = results.map(img => ({
+      id: img.id,
+      author: img.user?.name ?? "Autor desconhecido",
+      url: img.urls?.regular,
+      full: img.urls?.full
+    }));
+  } catch (e) {
+    error.value = "Erro ao carregar imagens da galeria.";
+    // opcional: console.log(e.response?.data || e.message);
   } finally {
     loading.value = false;
   }
 };
 
-// Paginação
-const next = () => { page.value++; fetchImages(); };
-const prev = () => { if (page.value > 1) { page.value--; fetchImages(); } };
+onMounted(fetchImages);
 
-// Favoritos
+// Controle de favoritos
 const onToggleFavorite = (item) => {
   favorites.value = toggleFavorite(item);
 };
 
-// Inicializar
-onMounted(fetchImages);
+// Navegação de página
+const nextPage = () => { page.value += 1; };
+const prevPage = () => { if (page.value > 1) page.value -= 1; };
+
+// Recarrega quando page ou query mudarem
+watch([page, query], fetchImages);
 </script>
 
 <template>
   <section class="gallery">
-    <header class="bar">
+    <header class="gallery-header">
       <h2>Galeria</h2>
       <div class="controls">
-        <label>
-          Página
-          <input type="number" min="1" v-model.number="page" @change="fetchImages" />
-        </label>
-        <label>
-          Limite
-          <select v-model.number="limit" @change="fetchImages">
-            <option v-for="n in [12,24,36]" :key="n" :value="n">{{ n }}</option>
-          </select>
-        </label>
+        <input
+          v-model="query"
+          type="text"
+          placeholder="Buscar tema (ex.: nature, city, space)"
+        />
+        <div class="pager">
+          <button @click="prevPage" :disabled="page === 1">‹ Anterior</button>
+          <span>Página {{ page }}</span>
+          <button @click="nextPage">Próxima ›</button>
+        </div>
       </div>
     </header>
 
-    <div v-if="loading" class="status">Carregando...</div>
+    <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="loading" class="loading">Carregando imagens...</p>
 
-    <div v-else class="grid">
+    <div class="grid" v-if="!loading && !error">
       <Card
         v-for="img in images"
         :key="img.id"
         :image="img"
-        :favorite="favoritesIds.has(img.id)"
+        :favorite="new Set(favorites.map(f => f.id)).has(img.id)"
+        :showInfo="false"
         @toggle-fav="onToggleFavorite"
+        @open="() => {}"
       />
     </div>
-
-    <footer class="pager">
-      <button @click="prev" :disabled="page===1">Anterior</button>
-      <span>Página {{ page }}</span>
-      <button @click="next">Próxima</button>
-    </footer>
   </section>
 </template>
 
 <style scoped lang="scss">
 .gallery {
-  max-width: 1100px;
-  margin: 1.5rem auto;
-  padding: 0 1.25rem;
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }
-.bar {
+
+.gallery-header {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  margin-bottom: 1rem;
-}
-.controls {
-  display: flex;
   gap: .75rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+
+  h2 { color: #e92782; }
+
+  .controls {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+
+    input {
+      padding: .5rem .75rem;
+      border: 1px solid #ddd;
+      border-radius: .5rem;
+      width: 260px;
+    }
+
+    .pager {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+
+      button {
+        padding: .4rem .7rem;
+        border: 1px solid #ddd;
+        border-radius: .5rem;
+        background: #fff;
+        cursor: pointer;
+      }
+    }
+  }
 }
-.controls input, .controls select {
-  padding: .4rem .6rem;
-}
-.status {
-  padding: 1rem;
-}
+
 .grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
-.pager {
-  display: flex;
-  justify-content: center;
-  gap: .75rem;
-  margin-top: 1rem;
-}
+
+.loading { color: #555; }
+.error { color: #c0392b; }
 </style>

@@ -4,7 +4,6 @@ import { ref, onMounted, computed } from "vue";
 import Card from "./Card.vue";
 import { getFavorites, toggleFavorite } from "../utils/storage";
 
-
 const images = ref([]);
 const favorites = ref(getFavorites());
 const modalItem = ref(null);
@@ -12,25 +11,32 @@ const modalItem = ref(null);
 // IDs favoritados
 const favoritesIds = computed(() => new Set(favorites.value.map((i) => i.id)));
 
-
 const fetchImages = async () => {
   try {
-    const { data } = await axios.get("https://picsum.photos/v2/list", {
-      params: { page:103, limit: 4 }, // só 4 imagens
+    const { data } = await axios.get("https://api.unsplash.com/photos/random", {
+      params: { count: 6 }, // 6 imagens aleatórias
+      headers: {
+        Authorization: `Client-ID ${import.meta.env.VITE_UNSPLASH_ACCESS_KEY}`
+      }
     });
-    images.value = data;
+
+    // Normaliza os dados para o Card.vue
+    images.value = data.map(img => ({
+      id: img.id,
+      author: img.user.name,
+      url: img.urls.regular,   // versão otimizada para web
+      full: img.urls.full      // versão em alta resolução (para modal)
+    }));
   } catch (err) {
-    console.error("Erro ao carregar imagens", err);
+    console.error("Erro ao carregar imagens do Unsplash", err);
   }
 };
 
 onMounted(fetchImages);
 
-
 const onToggleFavorite = (item) => {
   favorites.value = toggleFavorite(item);
 };
-
 
 const openModal = (item) => { modalItem.value = item; };
 const closeModal = () => { modalItem.value = null; };
@@ -58,7 +64,10 @@ const closeModal = () => { modalItem.value = null; };
 
     <!-- Modal -->
     <div v-if="modalItem" class="modal" @click.self="closeModal">
-      <img :src="`https://picsum.photos/id/${modalItem.id}/1200/800`" :alt="`Foto por ${modalItem.author}`" />
+      <img
+        :src="`${modalItem.full}?auto=format&fit=crop&w=1600&q=90`"
+        :alt="`Foto por ${modalItem.author}`"
+      />
       <button class="close" @click="closeModal">Fechar</button>
     </div>
   </section>
@@ -72,23 +81,24 @@ const closeModal = () => { modalItem.value = null; };
 
   h2 {
     margin-bottom: 0.5rem;
+    color: #e92782;
   }
 
   p {
     margin-bottom: 1rem;
-    color: #555;
+   color: #555;
   }
 
   .grid {
     display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   }
 
   .more {
     display: inline-block;
     margin-top: 1rem;
-    color: #4f46e5;
+    color: #e92782;
     font-weight: 600;
     text-decoration: none;
   }
@@ -100,10 +110,13 @@ const closeModal = () => { modalItem.value = null; };
     display: grid;
     place-items: center;
     padding: 2rem;
+    z-index: 9999;
   }
 
   .modal img {
-    width: min(100%, 1100px);
+    max-width: 100%;
+    max-height: 80vh; // nunca ultrapassa 80% da altura da tela
+    object-fit: contain;
     border-radius: .75rem;
   }
 

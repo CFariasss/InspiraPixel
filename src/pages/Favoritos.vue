@@ -3,11 +3,14 @@ import { ref, onMounted } from 'vue';
 import Card from '../components/Card.vue';
 import { getFavorites, setFavorites, toggleFavorite } from '../utils/storage';
 
+const isLoggedIn = ref(!!localStorage.getItem("userToken"));
 const items = ref([]);
 const modalItem = ref(null);
 
 onMounted(() => {
-  items.value = getFavorites();
+  if (isLoggedIn.value) {
+    items.value = getFavorites();
+  }
 });
 
 const onToggle = (item) => {
@@ -25,10 +28,23 @@ const closeModal = () => { modalItem.value = null; };
   <section class="favorites">
     <header class="bar">
       <h2>Favoritos</h2>
-      <button v-if="items.length" @click="clear">Limpar todos</button>
+      <div class="actions">
+        <!-- Apenas limpar todos -->
+        <button v-if="isLoggedIn && items.length" @click="clear">Limpar todos</button>
+      </div>
     </header>
 
-    <p v-if="!items.length" class="empty">Você ainda não tem favoritos.</p>
+    <!-- Se não estiver logado -->
+    <div v-if="!isLoggedIn" class="login-warning">
+      <p>Você precisa estar logado para acessar seus favoritos.</p>
+      <div class="actions">
+        <router-link to="/login" class="btn login">Login</router-link>
+        <router-link to="/signup" class="btn signup">Cadastre-se</router-link>
+      </div>
+    </div>
+
+    <!-- Se estiver logado -->
+    <p v-else-if="!items.length" class="empty">Você ainda não tem favoritos.</p>
 
     <div class="grid" v-else>
       <Card
@@ -51,14 +67,24 @@ const closeModal = () => { modalItem.value = null; };
 <style scoped lang="scss">
 .favorites {
   max-width: 1100px;
-  margin: 1.5rem auto;
+  margin: 7rem auto 2rem;
   padding: 0 1.25rem;
+  min-height: 70vh; 
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  
+
+  .actions {
+    display: flex;
+    gap: 1rem;
+  }
 }
 .grid {
   display: grid;
@@ -67,6 +93,44 @@ const closeModal = () => { modalItem.value = null; };
 }
 .empty {
   color: #666;
+  text-align: center;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+.login-warning {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: .75rem;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+
+  p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+  }
+
+  .actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+
+    .btn {
+      padding: .6rem 1rem;
+      border-radius: .5rem;
+      text-decoration: none;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .login {
+      background: #e92782;
+    }
+
+    .signup {
+      background: #e92782;
+    }
+  }
 }
 .modal {
   position: fixed;
@@ -75,9 +139,12 @@ const closeModal = () => { modalItem.value = null; };
   display: grid;
   place-items: center;
   padding: 2rem;
+  z-index: 9999;
 }
 .modal img {
-  width: min(100%, 1100px);
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
   border-radius: .75rem;
 }
 .close {
@@ -87,5 +154,7 @@ const closeModal = () => { modalItem.value = null; };
   border: none;
   padding: .6rem 1rem;
   border-radius: .5rem;
+  cursor: pointer;
 }
 </style>
+

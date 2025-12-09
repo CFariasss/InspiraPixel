@@ -2,27 +2,37 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  image: { type: Object, required: true },
+  image: { type: Object, required: true },   
   favorite: { type: Boolean, default: false },
+  showInfo: { type: Boolean, default: false } 
 });
 
-// URL otimizada
-const imageSrc = computed(() => `https://picsum.photos/id/${props.image.id}/600/400`);
+// URL otimizada do Unsplash
+const imageSrc = computed(() =>
+  props.image.url
+    ? `${props.image.url}?auto=format&fit=crop&w=1200&q=90`
+    : `https://source.unsplash.com/random/1200x800/?nature`
+);
 </script>
 
 <template>
   <article class="card">
+    <!-- Botão de favorito -->
     <button class="fav" @click="$emit('toggle-fav', image)">
       <span :aria-label="favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'">
         {{ favorite ? '★' : '☆' }}
       </span>
     </button>
+
+    <!-- Imagem principal -->
     <img
       :src="imageSrc"
       :alt="`Foto por ${image.author}`"
       loading="lazy"
       @click="$emit('open', image)"
     />
+
+    <!-- Barra de informações (opcional, agora desativada por padrão) -->
     <div v-if="showInfo" class="info">
       <strong>{{ image.author }}</strong>
       <small>ID: {{ image.id }}</small>
@@ -41,8 +51,8 @@ const imageSrc = computed(() => `https://picsum.photos/id/${props.image.id}/600/
   img {
     display: block;
     width: 100%;
-    aspect-ratio: 3/2;
-    object-fit: cover;
+    aspect-ratio: 3/5;
+    object-fit: cover;   // mantém proporção sem distorcer
     cursor: zoom-in;
   }
 
@@ -51,6 +61,8 @@ const imageSrc = computed(() => `https://picsum.photos/id/${props.image.id}/600/
     justify-content: space-between;
     padding: .6rem .75rem;
     color: #cfd2da;
+    background: #0f0f12;   // fundo sólido, não sobre a imagem
+    border-top: 1px solid #1e1e22;
   }
 
   .fav {

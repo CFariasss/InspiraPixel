@@ -17,22 +17,23 @@
 <style scoped lang="scss">
 .hero {
   display: flex;
+  padding-left: 6rem;
   padding-top: 80px; 
   align-items: center;
   justify-content: space-between;
   margin: 2rem;
 
   h2 {
-    font-size: 3rem;
+    font-size: 4rem;
   }
 
   span {
-    font-size: 3rem;
+    font-size: 8rem;
     color: #e1306c;
   }
 
   img {
-    width: 40vw;
+    width: 38vw;
   }
 }
 </style>
